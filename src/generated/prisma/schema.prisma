@@ -1,0 +1,52 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String         @id @default(uuid())
+  telegram     String         @unique
+  createdAt    DateTime       @default(now())
+  courses      Course[]
+  reminders    Reminder[]
+  foodAnalyses FoodAnalysis[]
+}
+
+model Course {
+  id          String     @id @default(uuid())
+  userId      String
+  user        User       @relation(fields: [userId], references: [id])
+  goal        String
+  supplements Json
+  schedule    Json
+  isPremium   Boolean    @default(false)
+  createdAt   DateTime   @default(now())
+  reminders   Reminder[]
+}
+
+model Reminder {
+  id        String   @id @default(uuid())
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id])
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  time      DateTime
+  message   String
+  createdAt DateTime @default(now())
+}
+
+model FoodAnalysis {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  photoUrl    String
+  calories    Float
+  nutrients   Json
+  suggestions String
+  createdAt   DateTime @default(now())
+}
