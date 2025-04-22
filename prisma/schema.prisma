@@ -14,6 +14,8 @@ model User {
   courses      Course[]
   reminders    Reminder[]
   foodAnalyses FoodAnalysis[]
+  supplements  Supplement[]
+  lastMessage  String?
 }
 
 model Course {
@@ -29,14 +31,18 @@ model Course {
 }
 
 model Reminder {
-  id        String   @id @default(uuid())
-  courseId  String
-  course    Course   @relation(fields: [courseId], references: [id])
-  userId    String
-  user      User     @relation(fields: [userId], references: [id])
-  time      DateTime
-  message   String
-  createdAt DateTime @default(now())
+  id             String    @id @default(uuid())
+  courseId       String
+  course         Course    @relation(fields: [courseId], references: [id])
+  userId         String
+  user           User      @relation(fields: [userId], references: [id])
+  type           String? // SUPPLEMENT, ANALYSIS, SURVEY
+  status         String? // TAKEN, SKIPPED, COMPLETED
+  surveyResponse String? // good, normal, bad
+  time           DateTime
+  message        String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime? @updatedAt
 }
 
 model FoodAnalysis {
@@ -48,4 +54,13 @@ model FoodAnalysis {
   nutrients   Json
   suggestions String
   createdAt   DateTime @default(now())
+}
+
+model Supplement {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  name      String?
+  photoUrl  String?
+  createdAt DateTime @default(now())
 }
