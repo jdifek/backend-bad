@@ -1,16 +1,19 @@
 const express = require('express');
-const cors = require('cors');
 require('dotenv').config();
 
 const app = express();
 
-app.use(cors());
+app.use((req, res, next) => {
+  console.log(`[${req.method}] ${req.url}`);
+  next();
+});
 
 app.get('/', (req, res) => {
   res.send('Hello World!');
 });
 
-const HOST = process.env.HOST || 'http://localhost:5000';
-app.listen(HOST, () => {
-  console.log(`${HOST}`);
+const PORT = process.env.PORT || 5000;
+const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3214';
+app.listen(PORT, () => {
+  console.log(`Server running on ${BACKEND_URL}`);
 });
