@@ -10,7 +10,7 @@ app.get('/', (req, res) => {
   res.send('Hello World!');
 });
 
-const PORT = process.env.PORT || 'http://localhost:5000';
-app.listen(PORT, () => {
+const HOST = process.env.HOST || 'http://localhost:5000';
+app.listen(HOST, () => {
   console.log(`${HOST}`);
 });
