@@ -14,6 +14,6 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 5000;
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:3214';
-app.listen(PORT, () => {
-  console.log(`Server running on ${BACKEND_URL}`);
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server running on port ${PORT}`);
 });
