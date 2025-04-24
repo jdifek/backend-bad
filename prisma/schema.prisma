@@ -82,15 +82,19 @@ model Supplement {
 }
 
 model Progress {
-  id         String   @id @default(uuid())
+  id         String    @id @default(uuid())
   userId     String
-  user       User     @relation(fields: [userId], references: [id])
+  user       User      @relation(fields: [userId], references: [id])
   courseId   String
-  course     Course   @relation(fields: [courseId], references: [id])
+  course     Course    @relation(fields: [courseId], references: [id])
   supplement String
   date       DateTime
-  status     String   @default("PENDING") // PENDING, TAKEN, SKIPPED
-  createdAt  DateTime @default(now())
+  status     String    @default("PENDING") // PENDING, TAKEN, SKIPPED
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime? @updatedAt
+
+  @@unique([userId, courseId, supplement, date])
+  @@index([userId, courseId])
 }
 
 model Survey {
