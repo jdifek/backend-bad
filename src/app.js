@@ -6,6 +6,7 @@ const {
 	foodAnalysisRouter,
 	reminderRouter,
 	myCourseRouter,
+	authRouter,
 } = require('./routes')
 
 const app = express()
@@ -19,5 +20,6 @@ app.use('/api/analyses', analysisRouter)
 app.use('/api/food-analysis', foodAnalysisRouter)
 app.use('/api/reminders', reminderRouter)
 app.use('/api/my-course', myCourseRouter)
+app.use('/api/auth', authRouter)
 
 module.exports = app
