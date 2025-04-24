@@ -141,12 +141,14 @@ const createReminder = async (courseId, userId, schedule) => {
 
 	// Напоминание о повторных анализах
 	if (schedule.analysisReminder) {
+		const analysisTime = new Date(Date.now() + 8 * 7 * 24 * 60 * 60 * 1000) // 8 недель
+		const formattedTime = analysisTime.toISOString()
 		const reminder = await prisma.reminder.create({
 			data: {
 				courseId,
 				userId,
 				type: 'ANALYSIS',
-				time: new Date(Date.now() + 8 * 7 * 24 * 60 * 60 * 1000), // 8 недель
+				time: formattedTime,
 				message: schedule.analysisReminder,
 			},
 		})
@@ -168,12 +170,14 @@ const createReminder = async (courseId, userId, schedule) => {
 
 	// Микро-опрос
 	if (schedule.survey) {
+		const surveyTime = new Date(Date.now() + 24 * 60 * 60 * 1000) // На следующий день
+		const formattedSurveyTime = surveyTime.toISOString()
 		const reminder = await prisma.reminder.create({
 			data: {
 				courseId,
 				userId,
 				type: 'SURVEY',
-				time: new Date(Date.now() + 24 * 60 * 60 * 1000), // На следующий день
+				time: formattedSurveyTime,
 				message: schedule.survey.message,
 			},
 		})

@@ -13,6 +13,13 @@ const createAnalysisCourse = async (req, res) => {
 		const { telegramId, goal, checklist } = req.body
 		const file = req.file
 
+		console.log('Received request to /api/analyses:', {
+			telegramId,
+			goal,
+			checklist,
+			hasFile: !!file,
+		})
+
 		if (!telegramId || !goal || !checklist) {
 			return res
 				.status(400)
@@ -68,6 +75,7 @@ const createAnalysisCourse = async (req, res) => {
 			photoUrl,
 			parsedChecklist
 		)
+		console.log('Generated course data:', courseData)
 
 		const course = await prisma.course.create({
 			data: {
@@ -76,13 +84,13 @@ const createAnalysisCourse = async (req, res) => {
 				supplements: courseData.supplements,
 				schedule: {
 					morning: courseData.supplements
-						.filter(s => s.time.toLowerCase() === 'утро')
+						.filter(s => s.time?.toLowerCase() === 'утро')
 						.map(s => s.name),
 					afternoon: courseData.supplements
-						.filter(s => s.time.toLowerCase() === 'день')
+						.filter(s => s.time?.toLowerCase() === 'день')
 						.map(s => s.name),
 					evening: courseData.supplements
-						.filter(s => s.time.toLowerCase() === 'вечер')
+						.filter(s => s.time?.toLowerCase() === 'вечер')
 						.map(s => s.name),
 				},
 				duration: courseData.duration,
@@ -111,7 +119,12 @@ const createAnalysisCourse = async (req, res) => {
 				'ИИ-нутрициолог не заменяет консультацию врача. Это рекомендации общего характера, основанные на открытых данных.',
 		})
 	} catch (error) {
-		console.error('Error in createAnalysisCourse:', error.message, error.stack)
+		console.error('Error in createAnalysisCourse:', {
+			message: error.message,
+			stack: error.stack,
+			requestBody: req.body,
+			file: req.file ? req.file.originalname : null,
+		})
 		res
 			.status(500)
 			.json({ error: `Failed to create analysis course: ${error.message}` })
