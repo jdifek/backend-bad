@@ -1,4 +1,4 @@
-const { generateAnalysisCourse, generateCourse } = require('../services/openaiService');
+const { generateAnalysisCourse, generateCourse } = require('../../services/aiService');
 const { createReminder, cancelReminders } = require('../services/reminderService');
 const prisma = require('../lib/prisma');
 
