@@ -1,6 +1,6 @@
 const { generateAnalysisCourse, generateCourse } = require('../../services/aiService');
 const { createReminder, cancelReminders } = require('../../services/reminderService');
-const prisma = require('../lib/prisma');
+const prisma = require('../../lib/prisma');
 
 const createCourses = async (req, res) => {
   try {
