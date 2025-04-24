@@ -32,6 +32,7 @@ const login = async (req, res) => {
 				data: {
 					telegramId,
 					name: name || 'User',
+					photoUrl: photoUrl || null,
 					accessToken: null,
 					refreshToken: null,
 				},
@@ -44,7 +45,7 @@ const login = async (req, res) => {
 			where: { telegramId },
 			data: {
 				name: name || user.name || 'User',
-				photoUrl: photoUrl || user.photoUrl,
+				photoUrl: photoUrl || user.photoUrl || null,
 				accessToken,
 				refreshToken,
 			},
@@ -55,7 +56,7 @@ const login = async (req, res) => {
 			user: {
 				telegramId,
 				name: name || user.name || 'User',
-				photoUrl: user.photoUrl,
+				photoUrl: user.photoUrl || null,
 			},
 			accessToken,
 			refreshToken,
