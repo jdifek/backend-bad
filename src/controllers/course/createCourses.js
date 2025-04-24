@@ -44,6 +44,18 @@ const createCourses = async (req, res) => {
       console.log(`Cancelling reminders for existing course ${existingCourse.id}`);
       await cancelReminders(existingCourse.id);
 
+      // Удаляем связанные записи из Progress
+      await prisma.progress.deleteMany({
+        where: { courseId: existingCourse.id },
+      });
+      console.log(`Deleted progress entries for course ${existingCourse.id}`);
+
+      // Удаляем связанные записи из Survey
+      await prisma.survey.deleteMany({
+        where: { courseId: existingCourse.id },
+      });
+      console.log(`Deleted survey entries for course ${existingCourse.id}`);
+
       // Удаляем старый курс
       await prisma.course.delete({
         where: { id: existingCourse.id },
