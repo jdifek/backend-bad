@@ -19,6 +19,19 @@ const createAnalysisCourse = async (req, res) => {
 				.json({ error: 'telegramId, goal, and checklist are required' })
 		}
 
+		// Парсим checklist, если он приходит как JSON-строка
+		let parsedChecklist
+		try {
+			parsedChecklist =
+				typeof checklist === 'string' ? JSON.parse(checklist) : checklist
+			if (!Array.isArray(parsedChecklist)) {
+				throw new Error('Checklist must be an array')
+			}
+		} catch (error) {
+			console.error('Error parsing checklist:', error.message)
+			return res.status(400).json({ error: 'Invalid checklist format' })
+		}
+
 		const user = await prisma.user.upsert({
 			where: { telegramId },
 			update: {},
@@ -50,7 +63,11 @@ const createAnalysisCourse = async (req, res) => {
 			console.log('Analysis photo uploaded, public URL:', photoUrl)
 		}
 
-		const courseData = await generateAnalysisCourse(goal, photoUrl, checklist)
+		const courseData = await generateAnalysisCourse(
+			goal,
+			photoUrl,
+			parsedChecklist
+		)
 
 		const course = await prisma.course.create({
 			data: {

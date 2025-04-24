@@ -15,6 +15,8 @@ model User {
   reminders    Reminder[]
   foodAnalyses FoodAnalysis[]
   supplements  Supplement[]
+  progress     Progress[]
+  surveys      Survey[]
   lastMessage  String?
 }
 
@@ -24,10 +26,17 @@ model Course {
   user        User       @relation(fields: [userId], references: [id])
   goal        String
   supplements Json
+  duration    Int?
+  suggestions String?
+  warnings    String?
+  questions   Json?
+  progress    Progress[]
+  surveys     Survey[]
   schedule    Json
   isPremium   Boolean    @default(false)
-  createdAt   DateTime   @default(now())
   reminders   Reminder[]
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime?  @updatedAt
 }
 
 model Reminder {
@@ -49,10 +58,13 @@ model FoodAnalysis {
   id          String   @id @default(uuid())
   userId      String
   user        User     @relation(fields: [userId], references: [id])
-  photoUrl    String
-  calories    Float
+  photoUrl    String?
+  dish        String?
+  calories    Int
   nutrients   Json
   suggestions String
+  questions   Json?
+  warnings    String?
   createdAt   DateTime @default(now())
 }
 
@@ -63,4 +75,29 @@ model Supplement {
   name      String?
   photoUrl  String?
   createdAt DateTime @default(now())
+}
+
+model Progress {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id])
+  courseId   String
+  course     Course   @relation(fields: [courseId], references: [id])
+  supplement String
+  date       DateTime
+  status     String   @default("PENDING") // PENDING, TAKEN, SKIPPED
+  createdAt  DateTime @default(now())
+}
+
+model Survey {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  courseId  String
+  course    Course   @relation(fields: [courseId], references: [id])
+  question  String
+  response  String?
+  status    String   @default("PENDING") // PENDING, COMPLETED
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

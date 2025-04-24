@@ -155,12 +155,55 @@ const generateAnalysisCourse = async (goal, photoUrl, checklist) => {
 }
 
 const analyzeFoodPhoto = async photoUrl => {
-	// TODO: Интеграция с Vision API для анализа еды
-	return {
-		photoUrl,
-		calories: 500,
-		nutrients: { protein: 20, fats: 15, carbs: 60 },
-		suggestions: 'Добавь больше клетчатки.',
+	if (!process.env.OPENAI_API_KEY) {
+		console.error('OPENAI_API_KEY is not set in .env')
+		throw new Error('OpenAI API key is missing')
+	}
+
+	const prompt = `
+    Ты — ИИ-нутрициолог. Тебе предоставлено изображение еды (URL: ${photoUrl}). Твоя задача:
+    - Распознать блюда или ингредиенты на фото.
+    - Оценить калорийность и содержание макронутриентов (белки, жиры, углеводы).
+    - Дать рекомендации по улучшению питания (например, "Добавь белок", "Слишком много сахара", "Мало клетчатки").
+    - Указать уточняющие вопросы (например, "Какова была порция?", "Добавлялись ли соусы?").
+    - Если блюдо не распознано, укажи это и предложи пользователю ввести данные вручную.
+    Используй простой, дружелюбный язык. Верни ответ в формате JSON:
+    {
+      "dish": "Название блюда или описание",
+      "calories": 0,
+      "nutrients": { "protein": 0, "fats": 0, "carbs": 0 },
+      "suggestions": "",
+      "questions": [],
+      "warnings": ""
+    }
+  `
+
+	try {
+		console.log('Calling GPT-4 Vision for food photo analysis:', photoUrl)
+		const response = await openai.chat.completions.create({
+			model: 'gpt-4o-mini',
+			messages: [
+				{
+					role: 'user',
+					content: [
+						{ type: 'text', text: prompt },
+						{ type: 'image_url', image_url: { url: photoUrl } },
+					],
+				},
+			],
+			response_format: { type: 'json_object' },
+		})
+
+		const result = JSON.parse(response.choices[0].message.content)
+		console.log('GPT-4 Vision food analysis result:', result)
+		return result
+	} catch (error) {
+		console.error(
+			'Error with GPT-4 Vision for food analysis:',
+			error.message,
+			error.stack
+		)
+		throw new Error(`Failed to analyze food photo: ${error.message}`)
 	}
 }
 

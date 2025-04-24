@@ -29,7 +29,7 @@ const addSupplement = async (req, res) => {
 			console.log('Uploading file to Supabase:', file.originalname)
 			const fileName = `${user.id}/${Date.now()}.jpg`
 			const { error } = await supabase.storage
-				.from('supplement-photos')
+				.from('supplements-photo')
 				.upload(fileName, file.buffer, { contentType: 'image/jpeg' })
 			if (error) {
 				console.error('Supabase upload error:', error.message)
