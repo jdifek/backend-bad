@@ -25,8 +25,6 @@ const createCourses = async (req, res) => {
 
     // Если есть фото (анализы), используем generateAnalysisCourse
     if (hasFile && req.file) {
-      // Предполагаем, что фото уже загружено и передано через middleware
-      // В реальном приложении здесь должна быть загрузка фото, но мы её опустим, так как вы попросили не добавлять лишнего
       const photoUrl = req.file ? `/path/to/uploaded/photo.jpg` : null; // Заглушка для URL фото
       console.log('Using photo URL for analysis:', photoUrl);
       courseData = await generateAnalysisCourse(goal, photoUrl, checklist ? JSON.parse(checklist) : []);
@@ -58,18 +56,19 @@ const createCourses = async (req, res) => {
       data: {
         userId: user.id,
         goal,
-        supplements: courseData.supplements,
+        supplements: courseData.supplements, // Json
         schedule: {
           morning: courseData.supplements.filter(s => s.time === 'утро').map(s => s.name),
           afternoon: courseData.supplements.filter(s => s.time === 'день').map(s => s.name),
           evening: courseData.supplements.filter(s => s.time === 'вечер').map(s => s.name),
-        },
-        duration: courseData.duration,
-        suggestions: courseData.suggestions,
-        warnings: courseData.warnings,
-        questions: courseData.questions,
-        repeatAnalysis: courseData.repeatAnalysis,
-        disclaimer: 'ИИ-нутрициолог не заменяет врача.',
+        }, // Json
+        duration: courseData.duration, // Int?
+        suggestions: courseData.suggestions, // String?
+        warnings: courseData.warnings, // String?
+        questions: courseData.questions, // Json? (массив автоматически преобразуется в JSON)
+        repeatAnalysis: courseData.repeatAnalysis, // String?
+        disclaimer: 'ИИ-нутрициолог не заменяет врача.', // String?
+        isPremium: courseData.isPremium || false, // Boolean
       },
     });
     console.log(`Course created: ${course.id} for user ${telegramId}`);

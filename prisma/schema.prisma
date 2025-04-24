@@ -34,13 +34,15 @@ model Course {
   suggestions String?
   warnings    String?
   questions   Json?
-  progress    Progress[]
-  surveys     Survey[]
+  repeatAnalysis String?
+  disclaimer  String?    // Новое поле
   schedule    Json
   isPremium   Boolean    @default(false)
   reminders   Reminder[]
   createdAt   DateTime   @default(now())
   updatedAt   DateTime?  @updatedAt
+  progress    Progress[]
+  surveys     Survey[]
 }
 
 model Reminder {
