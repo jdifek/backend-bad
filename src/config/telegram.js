@@ -42,6 +42,7 @@ try {
 					telegramId,
 					'Пользователь не найден. Пожалуйста, зарегистрируйтесь.'
 				)
+				await bot.answerCallbackQuery(query.id)
 				return
 			}
 
@@ -52,10 +53,38 @@ try {
 				})
 				if (!reminder) {
 					await bot.sendMessage(telegramId, 'Напоминание не найдено.')
+					await bot.answerCallbackQuery(query.id)
 					return
 				}
 
-				// Логируем действие
+				// Извлекаем название добавки из сообщения
+				const supplement = reminder.message.split(': ')[1].split(', ')[0]
+				const today = new Date().toISOString().split('T')[0]
+
+				// Обновляем или создаём запись в Progress
+				await prisma.progress.upsert({
+					where: {
+						userId_courseId_supplement_date: {
+							userId: user.id,
+							courseId: reminder.courseId,
+							supplement,
+							date: new Date(today),
+						},
+					},
+					update: {
+						status: action === 'taken' ? 'TAKEN' : 'SKIPPED',
+						updatedAt: new Date(),
+					},
+					create: {
+						userId: user.id,
+						courseId: reminder.courseId,
+						supplement,
+						date: new Date(today),
+						status: action === 'taken' ? 'TAKEN' : 'SKIPPED',
+					},
+				})
+
+				// Обновляем статус напоминания
 				await prisma.reminder.update({
 					where: { id: reminderId },
 					data: {
@@ -80,8 +109,27 @@ try {
 				})
 				if (!reminder) {
 					await bot.sendMessage(telegramId, 'Опрос не найден.')
+					await bot.answerCallbackQuery(query.id)
 					return
 				}
+
+				// Сохраняем ответ на опрос в Survey
+				await prisma.survey.upsert({
+					where: { id: reminderId },
+					update: {
+						response,
+						status: 'COMPLETED',
+						updatedAt: new Date(),
+					},
+					create: {
+						id: reminderId,
+						userId: user.id,
+						courseId: reminder.courseId,
+						question: reminder.message,
+						response,
+						status: 'COMPLETED',
+					},
+				})
 
 				// Сохраняем ответ на опрос
 				await prisma.reminder.update({
@@ -110,6 +158,7 @@ try {
 				error.stack
 			)
 			await bot.sendMessage(telegramId, 'Произошла ошибка. Попробуйте позже.')
+			await bot.answerCallbackQuery(query.id)
 		}
 	})
 
