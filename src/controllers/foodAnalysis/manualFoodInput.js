@@ -33,7 +33,7 @@ const manualFoodInput = async (req, res) => {
 			message: 'Manual food analysis saved',
 			foodAnalysis,
 			disclaimer:
-				'ИИ-нутрициолог не заменяет консультацию врача. Это рекомендации общего характера, основанные на открытых данных.',
+				'Персонализированные рекомендации ИИ-нутрициолога на основе открытых исследований и общих принципов. Не является медицинской услугой или диагнозом',
 		})
 	} catch (error) {
 		console.error('Error in manualFoodInput:', error.message, error.stack)

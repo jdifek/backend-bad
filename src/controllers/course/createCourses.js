@@ -4,15 +4,13 @@ const prisma = require('../../lib/prisma');
 
 const createCourses = async (req, res) => {
   try {
-    const { telegramId, goal, checklist, hasFile } = req.body;
-    console.log('Received request to /api/courses:', { telegramId, goal, checklist, hasFile });
+    const { telegramId, goal, checklist, hasFile, dietPreference } = req.body;
+    console.log('Received request to /api/courses:', { telegramId, goal, checklist, hasFile, dietPreference });
 
-    // Проверяем входные данные
     if (!telegramId || !goal) {
       return res.status(400).json({ error: 'telegramId and goal are required' });
     }
 
-    // Проверяем или создаём пользователя
     let user = await prisma.user.findUnique({ where: { telegramId } });
     if (!user) {
       user = await prisma.user.create({
@@ -23,69 +21,49 @@ const createCourses = async (req, res) => {
 
     let courseData;
 
-    // Если есть фото (анализы), используем generateAnalysisCourse
     if (hasFile && req.file) {
-      const photoUrl = req.file ? `/path/to/uploaded/photo.jpg` : null; // Заглушка для URL фото
+      const photoUrl = req.file ? `/path/to/uploaded/photo.jpg` : null; // Замените на реальную логику загрузки
       console.log('Using photo URL for analysis:', photoUrl);
-      courseData = await generateAnalysisCourse(goal, photoUrl, checklist ? JSON.parse(checklist) : []);
+      courseData = await generateAnalysisCourse(goal, photoUrl, checklist ? JSON.parse(checklist) : [], dietPreference);
     } else {
-      // Если фото нет, генерируем курс на основе цели и добавок
-      courseData = await generateCourse(goal, checklist ? JSON.parse(checklist) : []);
+      courseData = await generateCourse(goal, checklist ? JSON.parse(checklist) : [], dietPreference);
     }
     console.log('Generated course data:', courseData);
 
-    // Находим существующий курс пользователя
     const existingCourse = await prisma.course.findFirst({
       where: { userId: user.id },
     });
 
     if (existingCourse) {
-      // Отменяем старые напоминания
       console.log(`Cancelling reminders for existing course ${existingCourse.id}`);
       await cancelReminders(existingCourse.id);
-
-      // Удаляем связанные записи из Progress
-      await prisma.progress.deleteMany({
-        where: { courseId: existingCourse.id },
-      });
-      console.log(`Deleted progress entries for course ${existingCourse.id}`);
-
-      // Удаляем связанные записи из Survey
-      await prisma.survey.deleteMany({
-        where: { courseId: existingCourse.id },
-      });
-      console.log(`Deleted survey entries for course ${existingCourse.id}`);
-
-      // Удаляем старый курс
-      await prisma.course.delete({
-        where: { id: existingCourse.id },
-      });
+      await prisma.progress.deleteMany({ where: { courseId: existingCourse.id } });
+      await prisma.survey.deleteMany({ where: { courseId: existingCourse.id } });
+      await prisma.course.delete({ where: { id: existingCourse.id } });
       console.log(`Deleted existing course ${existingCourse.id}`);
     }
 
-    // Создаём новый курс
     const course = await prisma.course.create({
       data: {
         userId: user.id,
         goal,
-        supplements: courseData.supplements, // Json
+        supplements: courseData.supplements,
         schedule: {
           morning: courseData.supplements.filter(s => s.time === 'утро').map(s => s.name),
           afternoon: courseData.supplements.filter(s => s.time === 'день').map(s => s.name),
           evening: courseData.supplements.filter(s => s.time === 'вечер').map(s => s.name),
-        }, // Json
-        duration: courseData.duration, // Int?
-        suggestions: courseData.suggestions, // String?
-        warnings: courseData.warnings, // String?
-        questions: courseData.questions, // Json? (массив автоматически преобразуется в JSON)
-        repeatAnalysis: courseData.repeatAnalysis, // String?
-        disclaimer: 'ИИ-нутрициолог не заменяет врача.', // String?
-        isPremium: courseData.isPremium || false, // Boolean
+        },
+        duration: courseData.duration,
+        suggestions: courseData.suggestions,
+        warnings: courseData.warnings,
+        questions: courseData.questions,
+        repeatAnalysis: courseData.repeatAnalysis,
+        disclaimer: 'Персонализированные рекомендации ИИ-нутрициолога на основе открытых исследований и общих принципов. Не является медицинской услугой или диагнозом',
+        isPremium: courseData.isPremium || false,
       },
     });
     console.log(`Course created: ${course.id} for user ${telegramId}`);
 
-    // Создаём напоминания
     const scheduleData = {
       morning: courseData.supplements.filter(s => s.time === 'утро').map(s => s.name),
       afternoon: courseData.supplements.filter(s => s.time === 'день').map(s => s.name),
@@ -97,7 +75,6 @@ const createCourses = async (req, res) => {
     const { reminders, failedMessages } = await createReminder(course.id, user.id, scheduleData);
     console.log(`Created ${reminders.length} reminders for user ${telegramId}`);
 
-    // Отправляем ответ клиенту
     res.status(201).json({
       course,
       reminders,

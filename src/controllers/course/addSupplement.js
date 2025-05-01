@@ -37,7 +37,7 @@ const addSupplement = async (req, res) => {
 			}
 
 			const { data } = supabase.storage
-				.from('supplement-photos')
+				.from('supplements-photos')
 				.getPublicUrl(fileName)
 			photoUrl = data.publicUrl
 			console.log('File uploaded, public URL:', photoUrl)

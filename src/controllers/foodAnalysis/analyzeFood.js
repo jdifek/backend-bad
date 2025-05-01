@@ -64,7 +64,7 @@ const analyzeFood = async (req, res) => {
 			message: 'Food analysis completed',
 			foodAnalysis,
 			disclaimer:
-				'ИИ-нутрициолог не заменяет консультацию врача. Это рекомендации общего характера, основанные на открытых данных.',
+				'Персонализированные рекомендации ИИ-нутрициолога на основе открытых исследований и общих принципов. Не является медицинской услугой или диагнозом',
 		})
 	} catch (error) {
 		console.error('Error in analyzeFood:', error.message, error.stack)

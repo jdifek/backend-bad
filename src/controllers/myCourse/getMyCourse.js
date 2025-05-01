@@ -36,7 +36,7 @@ const getMyCourse = async (req, res) => {
 			message: 'Course retrieved successfully',
 			course,
 			disclaimer:
-				'ИИ-нутрициолог не заменяет консультацию врача. Это рекомендации общего характера, основанные на открытых данных.',
+				'Персонализированные рекомендации ИИ-нутрициолога на основе открытых исследований и общих принципов. Не является медицинской услугой или диагнозом',
 		})
 	} catch (error) {
 		console.error('Error in getMyCourse:', error.message, error.stack)

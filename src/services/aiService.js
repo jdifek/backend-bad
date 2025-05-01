@@ -4,20 +4,28 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const generateCourse = async (goal, supplements) => {
+const generateCourse = async (goal, supplements = [], dietPreference = 'none') => {
   if (!process.env.OPENAI_API_KEY) {
     console.error('OPENAI_API_KEY is not set in .env');
     throw new Error('OpenAI API key is missing');
   }
 
+  const dietInstruction = dietPreference !== 'none' 
+    ? `Пользователь следует ${dietPreference === 'vegan' ? 'веганской' : 'вегетарианской'} диете. Исключи добавки животного происхождения (например, рыбий жир) и предлагай только растительные альтернативы (например, омега-3 из водорослей).` 
+    : '';
+
+  const supplementPrompt = supplements.length > 0 
+    ? `У него есть добавки: ${supplements.join(', ')}.`
+    : `У пользователя нет добавок. Предложи стандартные БАДы для цели "${goal}".`;
+
   const prompt = `
-    Ты — ИИ-нутрициолог. Пользователь выбрал цель: "${goal}". У него есть добавки: ${supplements.join(
-      ', '
-    )}.
+    Ты — ИИ-нутрициолог. Пользователь выбрал цель: "${goal}".
+    ${supplementPrompt}
+    ${dietInstruction}
     Составь персональный курс приёма БАДов. Укажи:
     - Название БАДа
     - Дозировку (если неизвестно, предложи стандартную или уточни)
-    - Время приёма (утро/день/вечер)
+    - Время приёма (строго: "утро", "день", "вечер", в нижнем регистре, без других формулировок)
     - Длительность курса (по умолчанию 30 дней)
     - Советы по усилению курса
     - Предостережения (например, "Проконсультируйся с врачом")
@@ -46,7 +54,7 @@ const generateCourse = async (goal, supplements) => {
     console.log('OpenAI response:', result);
     return {
       ...result,
-      repeatAnalysis: result.repeatAnalysis || 'Повторить через 8 недель.', // Значение по умолчанию
+      repeatAnalysis: result.repeatAnalysis || 'Повторить через 8 недель.',
     };
   } catch (error) {
     console.error('Error with GPT-4o:', error.message, error.stack);
@@ -54,7 +62,7 @@ const generateCourse = async (goal, supplements) => {
   }
 };
 
-const recognizeSupplementPhoto = async photoUrl => {
+const recognizeSupplementPhoto = async (photoUrl) => {
   if (!process.env.OPENAI_API_KEY) {
     console.error('OPENAI_API_KEY is not set in .env');
     throw new Error('OpenAI API key is missing');
@@ -93,20 +101,70 @@ const recognizeSupplementPhoto = async photoUrl => {
   }
 };
 
-const generateAnalysisCourse = async (goal, photoUrl, checklist) => {
+const analyzeAnalysisFile = async (fileUrl) => {
   if (!process.env.OPENAI_API_KEY) {
     console.error('OPENAI_API_KEY is not set in .env');
     throw new Error('OpenAI API key is missing');
   }
 
   const prompt = `
-    Ты — ИИ-нутрициолог. Пользователь предоставил цель: "${goal}" и фото анализов (URL: ${photoUrl}).
-    Проверенные биомаркеры: ${checklist.join(', ')}.
+    Ты — ИИ-нутрициолог. Тебе предоставлен файл с результатами анализов (URL: ${fileUrl}). Твоя задача:
+    - Извлечь данные биомаркеров (например, Витамин D, Ферритин, Магний и т.д.).
+    - Указать значения, нормальные диапазоны и статус (нормально/дефицит/избыток).
+    - Дать краткую общую характеристику состояния здоровья на основе анализов.
+    - Вернуть ответ в формате JSON:
+    {
+      "biomarkers": [
+        { "name": "", "value": "", "normalRange": "", "status": "" }
+      ],
+      "summary": ""
+    }
+    Используй стандартные медицинские референсы для нормальных диапазонов. Если данные неразборчивы, укажи это в summary.
+  `;
+
+  try {
+    console.log('Calling GPT-4 Vision for analysis file:', fileUrl);
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: fileUrl } },
+          ],
+        },
+      ],
+      response_format: { type: 'json_object' },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content);
+    console.log('GPT-4 Vision analysis result:', result);
+    return result;
+  } catch (error) {
+    console.error('Error with GPT-4 Vision for analysis:', error.message, error.stack);
+    throw new Error(`Failed to analyze file: ${error.message}`);
+  }
+};
+
+const generateAnalysisCourse = async (goal, fileUrl, checklist = [], dietPreference = 'none') => {
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('OPENAI_API_KEY is not set in .env');
+    throw new Error('OpenAI API key is missing');
+  }
+
+  const dietInstruction = dietPreference !== 'none' 
+    ? `Пользователь следует ${dietPreference === 'vegan' ? 'веганской' : 'вегетарианской'} диете. Исключи добавки животного происхождения (например, рыбий жир) и предлагай только растительные альтернативы (например, омега-3 из водорослей).` 
+    : '';
+
+  const prompt = `
+    Ты — ИИ-нутрициолог. Пользователь предоставил цель: "${goal}" и файл анализов (URL: ${fileUrl}).
+    ${dietInstruction}
     Твоя задача:
-    - Распознать данные анализов на фото (значения биомаркеров, например, Витамин D, Ферритин, Магний и т.д.).
+    - Распознать данные анализов из файла (значения биомаркеров, например, Витамин D, Ферритин, Магний и т.д.).
     - Сопоставить значения с нормами (используй стандартные медицинские референсы).
     - Выявить дефициты или отклонения.
-    - Составить персональный курс приёма БАДов, учитывая цель и дефициты.
+    - Составь персональный курс приёма БАДов, учитывая цель и дефициты.
     - Указать:
       - Название БАДа
       - Дозировку (стандартную или уточнить)
@@ -128,7 +186,7 @@ const generateAnalysisCourse = async (goal, photoUrl, checklist) => {
   `;
 
   try {
-    console.log('Calling GPT-4 Vision for analysis photo:', photoUrl);
+    console.log('Calling GPT-4 Vision for analysis file:', fileUrl);
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -136,7 +194,7 @@ const generateAnalysisCourse = async (goal, photoUrl, checklist) => {
           role: 'user',
           content: [
             { type: 'text', text: prompt },
-            { type: 'image_url', image_url: { url: photoUrl } },
+            { type: 'image_url', image_url: { url: fileUrl } },
           ],
         },
       ],
@@ -155,7 +213,7 @@ const generateAnalysisCourse = async (goal, photoUrl, checklist) => {
   }
 };
 
-const analyzeFoodPhoto = async photoUrl => {
+const analyzeFoodPhoto = async (photoUrl) => {
   if (!process.env.OPENAI_API_KEY) {
     console.error('OPENAI_API_KEY is not set in .env');
     throw new Error('OpenAI API key is missing');
@@ -164,10 +222,10 @@ const analyzeFoodPhoto = async photoUrl => {
   const prompt = `
     Ты — ИИ-нутрициолог. Тебе предоставлено изображение еды (URL: ${photoUrl}). Твоя задача:
     - Распознать блюда или ингредиенты на фото.
-    - Оцен_drop_ить калорийность и содержание макронутриентов (белки, жиры, углеводы).
+    - Оценить калорийность и содержание макронутриентов (белки, жиры, углеводы).
     - Дать рекомендации по улучшению питания (например, "Добавь белок", "Слишком много сахара", "Мало клетчатки").
     - Указать уточняющие вопросы (например, "Какова была порция?", "Добавлялись ли соусы?").
-    - Если блюдо не распознано, укажи это и предложizardи пользователю ввести данные вручную.
+    - Если блюдо не распознано, укажи это и предложи пользователю ввести данные вручную.
     Используй простой, дружелюбный язык. Верни ответ в формате JSON:
     {
       "dish": "Название блюда или описание",
@@ -207,6 +265,7 @@ const analyzeFoodPhoto = async photoUrl => {
 module.exports = {
   generateCourse,
   recognizeSupplementPhoto,
+  analyzeAnalysisFile,
   generateAnalysisCourse,
   analyzeFoodPhoto,
 };
