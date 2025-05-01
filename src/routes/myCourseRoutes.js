@@ -15,3 +15,4 @@ router.delete('/delete', deleteCourse)
 
 
 module.exports = router
+
