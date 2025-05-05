@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "FoodAnalysis" ADD COLUMN     "date" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+ADD COLUMN     "type" TEXT;
+
+-- AlterTable
+ALTER TABLE "User" ADD COLUMN     "goal" INTEGER DEFAULT 2212;

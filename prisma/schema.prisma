@@ -8,41 +8,59 @@ datasource db {
 }
 
 model User {
-  id           String         @id @default(uuid())
-  telegramId   String         @unique
-  createdAt    DateTime       @default(now())
-  accessToken  String?        @unique
-  refreshToken String?        @unique
-  name         String?
-  photoUrl     String?
-  courses      Course[]
-  reminders    Reminder[]
-  foodAnalyses FoodAnalysis[]
-  supplements  Supplement[]
-  progress     Progress[]
-  surveys      Survey[]
-  lastMessage  String?
+  id            String          @id @default(uuid())
+  telegramId    String          @unique
+  createdAt     DateTime        @default(now())
+  accessToken   String?         @unique
+  refreshToken  String?         @unique
+  name          String?
+  photoUrl      String?
+  goal          Int?            @default(2212) // Цель калорий
+  courses       Course[]
+  reminders     Reminder[]
+  foodAnalyses  FoodAnalysis[]
+  supplements   Supplement[]
+  progress      Progress[]
+  surveys       Survey[]
+  lastMessage   String?
+  GoalAnalytics GoalAnalytics[]
+}
+
+model FoodAnalysis {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+  photoUrl    String?
+  dish        String?
+  calories    Int
+  nutrients   Json
+  suggestions String
+  questions   Json?
+  warnings    String?
+  type        String? // Breakfast, Lunch, Snack, Dinner
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
 }
 
 model Course {
-  id          String     @id @default(uuid())
-  userId      String
-  user        User       @relation(fields: [userId], references: [id])
-  goal        String
-  supplements Json
-  duration    Int?
-  suggestions String?
-  warnings    String?
-  questions   Json?
+  id             String     @id @default(uuid())
+  userId         String
+  user           User       @relation(fields: [userId], references: [id])
+  goal           String
+  supplements    Json
+  duration       Int?
+  suggestions    String?
+  warnings       String?
+  questions      Json?
   repeatAnalysis String?
-  disclaimer  String?    // Новое поле
-  schedule    Json
-  isPremium   Boolean    @default(false)
-  reminders   Reminder[]
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime?  @updatedAt
-  progress    Progress[]
-  surveys     Survey[]
+  disclaimer     String? // Новое поле
+  schedule       Json
+  isPremium      Boolean    @default(false)
+  reminders      Reminder[]
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime?  @updatedAt
+  progress       Progress[]
+  surveys        Survey[]
 }
 
 model Reminder {
@@ -60,19 +78,6 @@ model Reminder {
   updatedAt      DateTime? @updatedAt
 }
 
-model FoodAnalysis {
-  id          String   @id @default(uuid())
-  userId      String
-  user        User     @relation(fields: [userId], references: [id])
-  photoUrl    String?
-  dish        String?
-  calories    Int
-  nutrients   Json
-  suggestions String
-  questions   Json?
-  warnings    String?
-  createdAt   DateTime @default(now())
-}
 
 model Supplement {
   id        String   @id @default(uuid())
@@ -80,6 +85,14 @@ model Supplement {
   user      User     @relation(fields: [userId], references: [id])
   name      String?
   photoUrl  String?
+  createdAt DateTime @default(now())
+}
+
+model GoalAnalytics {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  goal      String
   createdAt DateTime @default(now())
 }
 

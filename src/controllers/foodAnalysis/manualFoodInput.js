@@ -1,12 +1,13 @@
 const prisma = require('../../lib/prisma')
+const { analyzeManualFoodInput } = require('../../services/aiService')
 
 const manualFoodInput = async (req, res) => {
 	try {
-		const { telegramId, dish, calories, nutrients, suggestions } = req.body
+		const { telegramId, dish, grams, suggestions } = req.body
 
-		if (!telegramId || !dish || !calories || !nutrients) {
+		if (!telegramId || !dish || !grams) {
 			return res.status(400).json({
-				error: 'telegramId, dish, calories, and nutrients are required',
+				error: 'telegramId, dish, and grams are required',
 			})
 		}
 
@@ -16,16 +17,22 @@ const manualFoodInput = async (req, res) => {
 			create: { telegramId },
 		})
 
+		// Вызываем функцию для анализа блюда через OpenAI
+		const analysis = await analyzeManualFoodInput(dish, grams)
+
 		const foodAnalysis = await prisma.foodAnalysis.create({
 			data: {
 				userId: user.id,
 				dish,
-				calories,
-				nutrients,
-				suggestions: suggestions || 'Нет дополнительных рекомендаций.',
-				questions: [],
-				warnings:
-					'Введенные данные могут быть неточными. Уточните состав блюда.',
+				calories: analysis.calories,
+				nutrients: {
+					protein: analysis.nutrients.protein,
+					fats: analysis.nutrients.fats,
+					carbs: analysis.nutrients.carbs,
+				},
+				suggestions: suggestions || analysis.suggestions || 'Нет дополнительных рекомендаций.',
+				questions: analysis.questions || [],
+				warnings: analysis.warnings || 'Введенные данные могут быть неточными. Уточните состав блюда.',
 			},
 		})
 

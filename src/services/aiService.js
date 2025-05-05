@@ -3,7 +3,60 @@ const OpenAI = require('openai');
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
+const analyzeManualFoodInput = async (dish, grams) => {
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('OPENAI_API_KEY is not set in .env');
+    throw new Error('OpenAI API key is missing');
+  }
 
+  const prompt = `
+    Ты — ИИ-нутрициолог. Пользователь указал блюдо: "${dish}" и его вес: ${grams} грамм. Твоя задача:
+    - Распознать блюдо или его основные ингредиенты.
+    - Оценить калорийность и содержание макронутриентов (белки, жиры, углеводы) для указанного веса.
+    - Дать рекомендации по улучшению питания (например, "Добавь белок", "Слишком много сахара").
+    - Указать уточняющие вопросы (например, "Какова была порция?", "Добавлялись ли соусы?").
+    - Если блюдо не распознано, укажи это и предложи пользователю уточнить состав.
+    Используй простой, дружелюбный язык. Верни ответ в формате JSON:
+    {
+      "dish": "Название блюда или описание",
+      "calories": 0,
+      "nutrients": { "protein": 0, "fats": 0, "carbs": 0 },
+      "suggestions": "",
+      "questions": [],
+      "warnings": ""
+    }
+  `;
+
+  try {
+    console.log('Calling GPT-4o-mini for manual food analysis:', dish, grams);
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' },
+    });
+
+    const result = JSON.parse(response.choices[0].message.content);
+    console.log('GPT-4o-mini manual food analysis result:', result);
+
+    // Масштабируем значения КБЖУ в зависимости от веса (если ИИ вернул данные для 100 г)
+    const scaleFactor = grams / 100;
+    return {
+      dish: result.dish,
+      calories: result.calories * scaleFactor,
+      nutrients: {
+        protein: result.nutrients.protein * scaleFactor,
+        fats: result.nutrients.fats * scaleFactor,
+        carbs: result.nutrients.carbs * scaleFactor,
+      },
+      suggestions: result.suggestions,
+      questions: result.questions,
+      warnings: result.warnings,
+    };
+  } catch (error) {
+    console.error('Error with GPT-4o-mini for manual food analysis:', error.message, error.stack);
+    throw new Error(`Failed to analyze manual food input: ${error.message}`);
+  }
+};
 const generateCourse = async (goal, supplements = [], dietPreference = 'none') => {
   if (!process.env.OPENAI_API_KEY) {
     console.error('OPENAI_API_KEY is not set in .env');
@@ -15,7 +68,7 @@ const generateCourse = async (goal, supplements = [], dietPreference = 'none') =
     : '';
 
   const supplementPrompt = supplements.length > 0 
-    ? `У него есть добавки: ${supplements.join(', ')}.`
+    ? `У него есть добавки: ${supplements.join(', ')}. Обязательно включи эти добавки в курс, подобрав подходящие дозировки и время приёма.`
     : `У пользователя нет добавок. Предложи стандартные БАДы для цели "${goal}".`;
 
   const prompt = `
@@ -43,7 +96,8 @@ const generateCourse = async (goal, supplements = [], dietPreference = 'none') =
   `;
 
   try {
-    console.log('Attempting to call OpenAI with model: gpt-4o-mini');
+    console.log('Attempting to call OpenAI with model: gpt-4o-mini for generateCourse');
+    console.log('Prompt for generateCourse:', prompt);
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [{ role: 'user', content: prompt }],
@@ -51,13 +105,13 @@ const generateCourse = async (goal, supplements = [], dietPreference = 'none') =
     });
 
     const result = JSON.parse(response.choices[0].message.content);
-    console.log('OpenAI response:', result);
+    console.log('OpenAI response for generateCourse:', JSON.stringify(result, null, 2));
     return {
       ...result,
       repeatAnalysis: result.repeatAnalysis || 'Повторить через 8 недель.',
     };
   } catch (error) {
-    console.error('Error with GPT-4o:', error.message, error.stack);
+    console.error('Error with GPT-4o in generateCourse:', error.message, error.stack);
     throw new Error(`Failed to generate course: ${error.message}`);
   }
 };
@@ -69,15 +123,17 @@ const recognizeSupplementPhoto = async (photoUrl) => {
   }
 
   const prompt = `
-    Ты — ИИ-нутрициолог. Тебе предоставлено изображение баночки с БАДом. Твоя задача:
-    - Распознать название БАДа на упаковке.
-    - Если название неразборчиво, вернуть "Unknown Supplement".
-    - Вернуть ответ в формате JSON: { "name": "Название БАДа" }
-    Используй простой и точный подход. Если на фото несколько БАДов, верни название самого заметного.
+    Ты — ИИ-нутрициолог. Тебе предоставлено изображение с баночками или упаковками БАДов. Твоя задача:
+    - Распознать названия всех БАДов на упаковках (например, "Vitamin D3", "Omega-3", "Магний цитрат").
+    - Игнорируй текст, не связанный с названиями БАДов (например, инструкции, состав, дозировки).
+    - Если названия неразборчивы или не видны, вернуть пустой массив.
+    - Вернуть ответ в формате JSON: { "names": ["Название БАДа 1", "Название БАДа 2", ...] }
+    Используй простой и точный подход. Если на фото несколько БАДов, верни все распознанные названия. Если ничего не распознано, верни { "names": [] }.
   `;
 
   try {
-    console.log('Calling GPT-4 Vision for photo recognition:', photoUrl);
+    console.log('Calling GPT-4 Vision for photo recognition with URL:', photoUrl);
+    console.log('Prompt for recognizeSupplementPhoto:', prompt);
     const response = await openai.chat.completions.create({
       model: 'gpt-4o-mini',
       messages: [
@@ -93,11 +149,17 @@ const recognizeSupplementPhoto = async (photoUrl) => {
     });
 
     const result = JSON.parse(response.choices[0].message.content);
-    console.log('GPT-4 Vision result:', result);
-    return result.name || 'Unknown Supplement';
+    console.log('Raw GPT-4 Vision response for recognizeSupplementPhoto:', JSON.stringify(result, null, 2));
+    const names = result.names || [];
+    console.log('Parsed supplement names:', names);
+    if (names.length === 0) {
+      console.warn('No supplements recognized from photo at URL:', photoUrl);
+    }
+    return names;
   } catch (error) {
-    console.error('Error with GPT-4 Vision:', error.message, error.stack);
-    throw new Error(`Failed to recognize supplement: ${error.message}`);
+    console.error('Error with GPT-4 Vision in recognizeSupplementPhoto:', error.message, error.stack);
+    console.error('Failed photo URL:', photoUrl);
+    return [];
   }
 };
 
@@ -268,4 +330,5 @@ module.exports = {
   analyzeAnalysisFile,
   generateAnalysisCourse,
   analyzeFoodPhoto,
+  analyzeManualFoodInput
 };
