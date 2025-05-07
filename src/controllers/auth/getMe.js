@@ -6,6 +6,7 @@ const getMe = async (req, res) => {
 			user: {
 				telegramId: user.telegramId,
 				name: user.name || 'User',
+        goal: user.goal,
 				photoUrl: user.photoUrl,
 			},
 		})
