@@ -1,5 +1,7 @@
 const OpenAI = require('openai');
 
+const fetch = require('node-fetch');
+const pdfParse = require('pdf-parse');
 const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
@@ -63,11 +65,11 @@ const generateCourse = async (goal, supplements = [], dietPreference = 'none') =
     throw new Error('OpenAI API key is missing');
   }
 
-  const dietInstruction = dietPreference !== 'none' 
-    ? `Пользователь следует ${dietPreference === 'vegan' ? 'веганской' : 'вегетарианской'} диете. Исключи добавки животного происхождения (например, рыбий жир) и предлагай только растительные альтернативы (например, омега-3 из водорослей).` 
+  const dietInstruction = dietPreference !== 'none'
+    ? `Пользователь следует ${dietPreference === 'vegan' ? 'веганской' : 'вегетарианской'} диете. Исключи добавки животного происхождения (например, рыбий жир) и предлагай только растительные альтернативы (например, омега-3 из водорослей).`
     : '';
 
-  const supplementPrompt = supplements.length > 0 
+  const supplementPrompt = supplements.length > 0
     ? `У него есть добавки: ${supplements.join(', ')}. Обязательно включи эти добавки в курс, подобрав подходящие дозировки и время приёма.`
     : `У пользователя нет добавок. Предложи стандартные БАДы для цели "${goal}".`;
 
@@ -169,8 +171,10 @@ const analyzeAnalysisFile = async (fileUrl) => {
     throw new Error('OpenAI API key is missing');
   }
 
+
+
   const prompt = `
-    Ты — ИИ-нутрициолог. Тебе предоставлен файл с результатами анализов (URL: ${fileUrl}). Твоя задача:
+    Ты — ИИ-нутрициолог. Тебе предоставлены результаты анализов. Твоя задача:
     - Извлечь данные биомаркеров (например, Витамин D, Ферритин, Магний и т.д.).
     - Указать значения, нормальные диапазоны и статус (нормально/дефицит/избыток).
     - Дать краткую общую характеристику состояния здоровья на основе анализов.
@@ -185,27 +189,58 @@ const analyzeAnalysisFile = async (fileUrl) => {
   `;
 
   try {
-    console.log('Calling GPT-4 Vision for analysis file:', fileUrl);
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            { type: 'image_url', image_url: { url: fileUrl } },
-          ],
-        },
-      ],
-      response_format: { type: 'json_object' },
-    });
+    console.log('Fetching file for analysis:', fileUrl);
+    const response = await fetch(fileUrl);
+    const buffer = await response.arrayBuffer();
+    const mimeType = response.headers.get('content-type');
 
-    const result = JSON.parse(response.choices[0].message.content);
-    console.log('GPT-4 Vision analysis result:', result);
+    let result;
+
+    if (mimeType === 'application/pdf') {
+      console.log('Processing PDF file');
+      const pdfData = await pdfParse(Buffer.from(buffer));
+      const text = pdfData.text;
+      console.log('Extracted text from PDF:', text);
+
+      // Анализ текста с помощью текстовой модели
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: `${prompt}\n\nТекст анализов:\n${text}`,
+          },
+        ],
+        response_format: { type: 'json_object' },
+      });
+
+      result = JSON.parse(response.choices[0].message.content);
+    } else if (['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(mimeType)) {
+      console.log('Processing image file');
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: fileUrl } },
+            ],
+          },
+        ],
+        response_format: { type: 'json_object' },
+      });
+
+      result = JSON.parse(response.choices[0].message.content);
+    } else {
+      throw new Error(`Неподдерживаемый тип файла: ${mimeType}. Допустимые типы: PDF, PNG, JPEG, GIF, WEBP.`);
+    }
+
+    console.log('Analysis result:', result);
     return result;
   } catch (error) {
-    console.error('Error with GPT-4 Vision for analysis:', error.message, error.stack);
-    throw new Error(`Failed to analyze file: ${error.message}`);
+    console.error('Error with file analysis:', error.message, error.stack);
+    throw new Error(`Не удалось проанализировать файл: ${error.message}`);
   }
 };
 
@@ -215,15 +250,16 @@ const generateAnalysisCourse = async (goal, fileUrl, checklist = [], dietPrefere
     throw new Error('OpenAI API key is missing');
   }
 
-  const dietInstruction = dietPreference !== 'none' 
-    ? `Пользователь следует ${dietPreference === 'vegan' ? 'веганской' : 'вегетарианской'} диете. Исключи добавки животного происхождения (например, рыбий жир) и предлагай только растительные альтернативы (например, омега-3 из водорослей).` 
+
+  const dietInstruction = dietPreference !== 'none'
+    ? `Пользователь следует ${dietPreference === 'vegan' ? 'веганской' : 'вегетарианской'} диете. Исключи добавки животного происхождения (например, рыбий жир) и предлагай только растительные альтернативы (например, омега-3 из водорослей).`
     : '';
 
   const prompt = `
-    Ты — ИИ-нутрициолог. Пользователь предоставил цель: "${goal}" и файл анализов (URL: ${fileUrl}).
+    Ты — ИИ-нутрициолог. Пользователь предоставил цель: "${goal}".
     ${dietInstruction}
     Твоя задача:
-    - Распознать данные анализов из файла (значения биомаркеров, например, Витамин D, Ферритин, Магний и т.д.).
+    - Распознать данные анализов (значения биомаркеров, например, Витамин D, Ферритин, Магний и т.д.).
     - Сопоставить значения с нормами (используй стандартные медицинские референсы).
     - Выявить дефициты или отклонения.
     - Составь персональный курс приёма БАДов, учитывая цель и дефициты.
@@ -248,30 +284,60 @@ const generateAnalysisCourse = async (goal, fileUrl, checklist = [], dietPrefere
   `;
 
   try {
-    console.log('Calling GPT-4 Vision for analysis file:', fileUrl);
-    const response = await openai.chat.completions.create({
-      model: 'gpt-4o-mini',
-      messages: [
-        {
-          role: 'user',
-          content: [
-            { type: 'text', text: prompt },
-            { type: 'image_url', image_url: { url: fileUrl } },
-          ],
-        },
-      ],
-      response_format: { type: 'json_object' },
-    });
+    console.log('Fetching file for analysis course:', fileUrl);
+    const response = await fetch(fileUrl);
+    const buffer = await response.arrayBuffer();
+    const mimeType = response.headers.get('content-type');
 
-    const result = JSON.parse(response.choices[0].message.content);
-    console.log('GPT-4 Vision analysis result:', result);
+    let result;
+
+    if (mimeType === 'application/pdf') {
+      console.log('Processing PDF file for course generation');
+      const pdfData = await pdfParse(Buffer.from(buffer));
+      const text = pdfData.text;
+      console.log('Extracted text from PDF:', text);
+
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: `${prompt}\n\nТекст анализов:\n${text}`,
+          },
+        ],
+        response_format: { type: 'json_object' },
+      });
+
+      result = JSON.parse(response.choices[0].message.content);
+    } else if (['image/png', 'image/jpeg', 'image/gif', 'image/webp'].includes(mimeType)) {
+      console.log('Processing image file for course generation');
+      const response = await openai.chat.completions.create({
+        model: 'gpt-4o-mini',
+        messages: [
+          {
+            role: 'user',
+            content: [
+              { type: 'text', text: prompt },
+              { type: 'image_url', image_url: { url: fileUrl } },
+            ],
+          },
+        ],
+        response_format: { type: 'json_object' },
+      });
+
+      result = JSON.parse(response.choices[0].message.content);
+    } else {
+      throw new Error(`Неподдерживаемый тип файла: ${mimeType}. Допустимые типы: PDF, PNG, JPEG, GIF, WEBP.`);
+    }
+
+    console.log('Analysis course result:', result);
     return {
       ...result,
       isPremium: true,
     };
   } catch (error) {
-    console.error('Error with GPT-4 Vision for analysis:', error.message, error.stack);
-    throw new Error(`Failed to generate analysis course: ${error.message}`);
+    console.error('Error with analysis course generation:', error.message, error.stack);
+    throw new Error(`Не удалось создать курс анализа: ${error.message}`);
   }
 };
 
@@ -282,22 +348,22 @@ const analyzeFoodPhoto = async (photoUrl) => {
   }
 
   const prompt = `
-    Ты — ИИ-нутрициолог. Тебе предоставлено изображение еды (URL: ${photoUrl}). Твоя задача:
-    - Распознать блюда или ингредиенты на фото.
-    - Оценить калорийность и содержание макронутриентов (белки, жиры, углеводы).
-    - Дать рекомендации по улучшению питания (например, "Добавь белок", "Слишком много сахара", "Мало клетчатки").
-    - Указать уточняющие вопросы (например, "Какова была порция?", "Добавлялись ли соусы?").
-    - Если блюдо не распознано, укажи это и предложи пользователю ввести данные вручную.
-    Используй простой, дружелюбный язык. Верни ответ в формате JSON:
-    {
-      "dish": "Название блюда или описание",
-      "calories": 0,
-      "nutrients": { "protein": 0, "fats": 0, "carbs": 0 },
-      "suggestions": "",
-      "questions": [],
-      "warnings": ""
-    }
-  `;
+  Ты — ИИ-нутрициолог. Тебе предоставлено изображение еды (URL: ${photoUrl}). Твоя задача:
+  - Распознать блюда или ингредиенты на фото.
+  - Оценить калорийность и содержание макронутриентов (белки, жиры, углеводы). Если точные данные недоступны, используй стандартные значения для 100 г каждого ингредиента (например, курица ~165 ккал, картофельное пюре ~80 ккал, овощи ~30 ккал) и укажи, что это приблизительные данные.
+  - Дать рекомендации по улучшению питания (например, "Добавь белок", "Слишком много сахара", "Мало клетчатки").
+  - Указать уточняющие вопросы (например, "Какова была порция?", "Добавлялись ли соусы?").
+  - Если блюдо не распознано, укажи это и предложи пользователю ввести данные вручную.
+  Используй простой, дружелюбный язык. Верни ответ в формате JSON:
+  {
+    "dish": "Название блюда или описание",
+    "calories": 0,
+    "nutrients": { "protein": 0, "fats": 0, "carbs": 0 },
+    "suggestions": "",
+    "questions": [],
+    "warnings": ""
+  }
+`;
 
   try {
     console.log('Calling GPT-4 Vision for food photo analysis:', photoUrl);
