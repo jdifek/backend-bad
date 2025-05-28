@@ -27,7 +27,7 @@ const login = async (req, res) => {
       where: { telegramId },
     });
 
-    const isAdmin = telegramId === '5969166369' || telegramId === '714660678'; // Автоматически присваиваем роль админа
+    const isAdmin = telegramId === '5969166369' || telegramId === '714660678';
 
     if (!user) {
       user = await prisma.user.create({
@@ -37,12 +37,11 @@ const login = async (req, res) => {
           photoUrl: photoUrl || null,
           accessToken: null,
           refreshToken: null,
-          isAdmin, // Устанавливаем isAdmin
-          isPremium, // Устанавливаем isAdmin
+          isAdmin,
+          isPremium: false, // Устанавливаем isPremium по умолчанию
         },
       });
     } else if (user.isAdmin !== isAdmin) {
-      // Обновляем isAdmin, если изменилось
       user = await prisma.user.update({
         where: { telegramId },
         data: { isAdmin },
@@ -68,7 +67,7 @@ const login = async (req, res) => {
         name: name || user.name || 'User',
         photoUrl: user.photoUrl || null,
         isAdmin: user.isAdmin,
-        isPremium: user.isPremium,
+        isPremium: user.isPremium, // Добавляем isPremium
       },
       accessToken,
       refreshToken,

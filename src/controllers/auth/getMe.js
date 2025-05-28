@@ -9,6 +9,7 @@ const getMe = async (req, res) => {
         goal: user.goal,
         photoUrl: user.photoUrl,
         isAdmin: user.isAdmin, // Добавляем isAdmin
+        isPremium: user.isPremium, // Добавляем isAdmin
       },
     });
   } catch (error) {
