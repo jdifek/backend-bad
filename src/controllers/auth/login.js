@@ -1,70 +1,80 @@
-const jwt = require('jsonwebtoken')
-const prisma = require('../../lib/prisma')
+const jwt = require('jsonwebtoken');
+const prisma = require('../../lib/prisma');
 
-const generateTokens = user => {
-	const accessToken = jwt.sign(
-		{ telegramId: user.telegramId, name: user.name || 'User' },
-		process.env.JWT_SECRET,
-		{ expiresIn: '15m' }
-	)
-	const refreshToken = jwt.sign(
-		{ telegramId: user.telegramId },
-		process.env.JWT_SECRET,
-		{ expiresIn: '7d' }
-	)
-	return { accessToken, refreshToken }
-}
+const generateTokens = (user) => {
+  const accessToken = jwt.sign(
+    { telegramId: user.telegramId, name: user.name || 'User', isAdmin: user.isAdmin },
+    process.env.JWT_SECRET,
+    { expiresIn: '15m' }
+  );
+  const refreshToken = jwt.sign(
+    { telegramId: user.telegramId },
+    process.env.JWT_SECRET,
+    { expiresIn: '7d' }
+  );
+  return { accessToken, refreshToken };
+};
 
 const login = async (req, res) => {
-	try {
-		const { telegramId, name, photoUrl } = req.body
+  try {
+    const { telegramId, name, photoUrl } = req.body;
 
-		if (!telegramId) {
-			return res.status(400).json({ error: 'telegramId is required' })
-		}
+    if (!telegramId) {
+      return res.status(400).json({ error: 'telegramId is required' });
+    }
 
-		let user = await prisma.user.findUnique({
-			where: { telegramId },
-		})
+    let user = await prisma.user.findUnique({
+      where: { telegramId },
+    });
 
-		if (!user) {
-			user = await prisma.user.create({
-				data: {
-					telegramId,
-					name: name || 'User',
-					photoUrl: photoUrl || null,
-					accessToken: null,
-					refreshToken: null,
-				},
-			})
-		}
+    const isAdmin = telegramId === '5969166369' || telegramId === '714660678'; // Автоматически присваиваем роль админа
 
-		const { accessToken, refreshToken } = generateTokens(user)
+    if (!user) {
+      user = await prisma.user.create({
+        data: {
+          telegramId,
+          name: name || 'User',
+          photoUrl: photoUrl || null,
+          accessToken: null,
+          refreshToken: null,
+          isAdmin, // Устанавливаем isAdmin
+        },
+      });
+    } else if (user.isAdmin !== isAdmin) {
+      // Обновляем isAdmin, если изменилось
+      user = await prisma.user.update({
+        where: { telegramId },
+        data: { isAdmin },
+      });
+    }
 
-		await prisma.user.update({
-			where: { telegramId },
-			data: {
-				name: name || user.name || 'User',
-				photoUrl: photoUrl || user.photoUrl || null,
-				accessToken,
-				refreshToken,
-			},
-		})
+    const { accessToken, refreshToken } = generateTokens(user);
 
-		res.json({
-			message: 'Login successful',
-			user: {
-				telegramId,
-				name: name || user.name || 'User',
-				photoUrl: user.photoUrl || null,
-			},
-			accessToken,
-			refreshToken,
-		})
-	} catch (error) {
-		console.error('Error in login:', error.message, error.stack)
-		res.status(500).json({ error: `Failed to login: ${error.message}` })
-	}
-}
+    await prisma.user.update({
+      where: { telegramId },
+      data: {
+        name: name || user.name || 'User',
+        photoUrl: photoUrl || user.photoUrl || null,
+        accessToken,
+        refreshToken,
+      },
+    });
 
-module.exports = { login }
+    res.json({
+      message: 'Login successful',
+      user: {
+        telegramId,
+        name: name || user.name || 'User',
+        photoUrl: user.photoUrl || null,
+        isAdmin: user.isAdmin,
+      },
+      accessToken,
+      refreshToken,
+    });
+  } catch (error) {
+    console.error('Error in login:', error.message, error.stack);
+    res.status(500).json({ error: `Failed to login: ${error.message}` });
+  }
+};
+
+module.exports = { login };

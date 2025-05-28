@@ -17,6 +17,7 @@
 		"@google-cloud/vision": "^5.1.0",
 		"@prisma/client": "^6.6.0",
 		"@supabase/supabase-js": "^2.49.4",
+		"axios": "^1.9.0",
 		"cors": "^2.8.5",
 		"dotenv": "^16.5.0",
 		"express": "^5.1.0",
@@ -28,7 +29,8 @@
 		"openai": "^4.95.1",
 		"pdf-parse": "^1.1.1",
 		"pg": "^8.14.1",
-		"prisma": "^6.6.0"
+		"prisma": "^6.6.0",
+		"qrcode": "^1.5.4"
 	},
 	"devDependencies": {
 		"@types/pdf-parse": "^1.1.5",
