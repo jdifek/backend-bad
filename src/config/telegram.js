@@ -15,8 +15,14 @@ if (!token) {
 
 let bot;
 try {
-  bot = new TelegramBot(token, { polling: true });
+  bot = new TelegramBot(token, { polling: { autoStart: false } }); // Отключаем автоматический polling
   console.log('Telegram Bot initialized successfully');
+
+  // Ручной запуск polling
+  bot.startPolling().catch((error) => {
+    console.error('Failed to start polling:', error.message);
+    process.exit(1); // Завершаем процесс при ошибке
+  });
 
   bot.on('message', async (msg) => {
     console.log(`Received message from ${msg.chat.id}: ${msg.text}`);
@@ -150,7 +156,7 @@ try {
 
   bot.onText(/\/start (.+)/, async (msg, match) => {
     const telegramId = msg.chat.id.toString();
-    const code = match[1]; // Извлекаем код из команды /start id=code
+    const code = match[1];
 
     try {
       const response = await axios.post('https://backend-bad-production.up.railway.app/api/auth/redeem-qr', {
@@ -173,6 +179,11 @@ try {
 
   bot.on('polling_error', (error) => {
     console.error('Telegram polling error:', error.message);
+    if (error.message.includes('409 Conflict')) {
+      console.error('Multiple bot instances detected. Stopping polling...');
+      bot.stopPolling();
+      process.exit(1);
+    }
   });
 } catch (error) {
   console.error('Failed to initialize Telegram Bot:', error.message);
