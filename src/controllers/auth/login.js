@@ -27,7 +27,7 @@ const login = async (req, res) => {
       where: { telegramId },
     });
 
-    const isAdmin = telegramId === '5969166369' || telegramId === '714660678';
+    const isAdmin = telegramId === '5969166369' || telegramId === '714660678' || telegramId === '5056024242';
 
     if (!user) {
       user = await prisma.user.create({
