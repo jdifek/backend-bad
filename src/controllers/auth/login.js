@@ -38,6 +38,7 @@ const login = async (req, res) => {
           accessToken: null,
           refreshToken: null,
           isAdmin, // Устанавливаем isAdmin
+          isPremium, // Устанавливаем isAdmin
         },
       });
     } else if (user.isAdmin !== isAdmin) {
@@ -67,6 +68,7 @@ const login = async (req, res) => {
         name: name || user.name || 'User',
         photoUrl: user.photoUrl || null,
         isAdmin: user.isAdmin,
+        isPremium: user.isPremium,
       },
       accessToken,
       refreshToken,
