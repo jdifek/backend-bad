@@ -8,15 +8,25 @@ const bot = require('../../config/telegram');
 
 const bulkQR = async (req, res) => {
   try {
-    const { count } = req.body;
+    const { count, telegramId } = req.body;
 
     if (!count || count <= 0) {
-      return res.status(400).json({ error: 'Valid count is required' });
+      return res.status(400).json({ error: 'Необходимо указать корректное количество' });
+    }
+
+    if (!telegramId) {
+      return res.status(400).json({ error: 'Необходим Telegram ID' });
     }
 
     if (!bot) {
-      console.error('Telegram bot is not initialized');
-      return res.status(500).json({ error: 'Telegram bot is not available' });
+      console.error('Telegram бот не инициализирован');
+      return res.status(500).json({ error: 'Telegram бот недоступен' });
+    }
+
+    // Проверка существования пользователя
+    const user = await prisma.user.findUnique({ where: { telegramId } });
+    if (!user) {
+      return res.status(400).json({ error: 'Пользователь с указанным Telegram ID не найден' });
     }
 
     const qrCodes = [];
@@ -36,7 +46,7 @@ const bulkQR = async (req, res) => {
       qrCodes.push({ code, link: qrLink, image: qrImage });
     }
 
-    // Create Excel file
+    // Создание Excel файла
     const workbook = new ExcelJS.Workbook();
     const worksheet = workbook.addWorksheet('QR Codes');
 
@@ -63,35 +73,40 @@ const bulkQR = async (req, res) => {
       });
     }
 
-    // Save Excel file temporarily
-    const tempDir = path.join(__dirname, '../../temp');
+    // Создание временной папки и файла
+    const tempDir = path.resolve(__dirname, '../../temp');
     await fs.mkdir(tempDir, { recursive: true });
-    const fileName = `qr_codes_${new Date().toISOString()}.xlsx`;
-    const filePath = path.join(tempDir, fileName);
-    await workbook.xlsx.writeFile(filePath);
+    const fileName = `qr_codes_${new Date().toISOString().replace(/:/g, '-')}.xlsx`;
+    const filePath = path.resolve(tempDir, fileName);
 
-    // Send file to Telegram
-    const telegramId = req.user?.telegramId || process.env.ADMIN_CHAT_ID; // Get from JWT or .env
-    if (!telegramId) {
-      console.error('No Telegram ID or ADMIN_CHAT_ID provided');
-      await fs.unlink(filePath).catch((err) => console.error('Error deleting temp file:', err.message));
-      return res.status(400).json({ error: 'Admin Telegram ID not found' });
+    console.log(`Создание файла: ${filePath}`);
+
+    // Запись файла и проверка его существования
+    await workbook.xlsx.writeFile(filePath);
+    try {
+      await fs.access(filePath);
+      console.log(`Файл успешно создан: ${filePath}`);
+    } catch (error) {
+      console.error(`Файл не найден после записи: ${filePath}`, error.message);
+      throw new Error(`Не удалось создать файл: ${filePath}`);
     }
 
+    // Отправка файла в Telegram
+    let telegramError = null;
     try {
       await bot.sendDocument(
         telegramId,
         filePath,
-        { caption: `Generated ${count} QR codes` },
-        { filename: fileName, contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+        { caption: `Сгенерировано ${count} QR-кодов` },
+        { contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', filename: fileName }
       );
-      console.log(`Excel file sent to Telegram ID ${telegramId}`);
+      console.log(`Excel файл отправлен на Telegram ID ${telegramId}`);
     } catch (error) {
-      console.error('Error sending file to Telegram:', error.message, error.stack);
-      // Don't fail the request; just log the error
+      console.error('Ошибка при отправке файла в Telegram:', error.message, error.stack);
+      telegramError = 'Не удалось отправить файл в Telegram. Убедитесь, что вы начали диалог с ботом, отправив /start.';
     }
 
-    // Send file to frontend
+    // Отправка файла на фронтенд
     res.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
@@ -101,11 +116,16 @@ const bulkQR = async (req, res) => {
     const fileBuffer = await fs.readFile(filePath);
     res.send(fileBuffer);
 
-    // Clean up temporary file
-    await fs.unlink(filePath).catch((err) => console.error('Error deleting temp file:', err.message));
+    // Удаление временного файла
+    await fs.unlink(filePath).catch((err) => console.error('Ошибка при удалении временного файла:', err.message));
+
+    // Если была ошибка Telegram, вернуть ее в ответе
+    if (telegramError) {
+      res.setHeader('X-Telegram-Error', telegramError);
+    }
   } catch (error) {
-    console.error('Error in bulkQR:', error.message, error.stack);
-    res.status(500).json({ error: `Failed to create bulk QR codes: ${error.message}` });
+    console.error('Ошибка в bulkQR:', error.message, error.stack);
+    res.status(500).json({ error: `Не удалось создать QR-коды: ${error.message}` });
   }
 };
 
