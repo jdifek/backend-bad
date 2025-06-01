@@ -1,5 +1,16 @@
 const prisma = require("../lib/prisma");
-
+const deleteMeal = async (req, res) => {
+  try {
+    const mealId = req.params.mealId;
+    await prisma.foodAnalysis.delete({
+      where: { id: mealId }
+    });
+    res.status(200).json({ message: 'Meal deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting meal:', error);
+    res.status(500).json({ error: 'Failed to delete meal' });
+  }
+}
 const saveMeal = async (req, res) => {
   try {
     const { telegramId, dish, calories, type, date } = req.body;
@@ -72,4 +83,4 @@ const updateUserGoal = async (req, res) => {
   }
 };
 
-module.exports = { saveMeal, getUserMeals, updateUserGoal };
+module.exports = { saveMeal, getUserMeals, updateUserGoal, deleteMeal };

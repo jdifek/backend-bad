@@ -9,8 +9,9 @@ const supabase = createClient(
 
 const analyzeFood = async (req, res) => {
 	try {
-		const { telegramId } = req.body
+		const { telegramId, type  } = req.body
 		const file = req.file
+    
 
 		console.log('Request body:', req.body)
 		console.log('File received:', file ? file.originalname : 'No file')
@@ -57,6 +58,8 @@ const analyzeFood = async (req, res) => {
 				suggestions: analysis.suggestions,
 				questions: analysis.questions,
 				warnings: analysis.warnings,
+        type: type || 'Lunch', // Default to Lunch if not specified
+
 			},
 		})
 

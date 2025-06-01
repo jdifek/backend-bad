@@ -3,7 +3,7 @@ const { analyzeManualFoodInput } = require('../../services/aiService')
 
 const manualFoodInput = async (req, res) => {
 	try {
-		const { telegramId, dish, grams, suggestions } = req.body
+		const { telegramId, dish, grams, suggestions, type} = req.body
 
 		if (!telegramId || !dish || !grams) {
 			return res.status(400).json({
@@ -33,6 +33,8 @@ const manualFoodInput = async (req, res) => {
 				suggestions: suggestions || analysis.suggestions || 'Нет дополнительных рекомендаций.',
 				questions: analysis.questions || [],
 				warnings: analysis.warnings || 'Введенные данные могут быть неточными. Уточните состав блюда.',
+        type: type || 'Lunch', // Add type here
+
 			},
 		})
 

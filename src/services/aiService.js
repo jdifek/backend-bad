@@ -60,6 +60,56 @@ const analyzeManualFoodInput = async (dish, grams) => {
     throw new Error(`Failed to analyze manual food input: ${error.message}`);
   }
 };
+
+const upCourseAi = async (courseOld) => {
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('OPENAI_API_KEY is not set in .env');
+    throw new Error('OpenAI API key is missing');
+  }
+
+  const prompt = `
+Ты — ИИ-нутрициолог. Ранее ты создал этот курс: ${JSON.stringify(courseOld)}.
+Теперь пользователь хочет усилить его: либо добавь новые добавки, либо увеличь дозировки.
+
+Обязательно включи добавку "Ежовик гребенчатый" (Hericium erinaceus) с дозировкой 1600 мг, время приёма: утро, инструкция: до еды.
+
+Также верни блок "compatibilityNotes" — краткое описание, можно ли принимать некоторые добавки вместе. Пример:
+"compatibilityNotes": "Витамин D и Омега-3 можно принимать вместе — они жирорастворимые и усваиваются лучше. Цинк и Магний лучше разнести по времени — конкурируют за усвоение."
+
+Ответ верни в виде JSON строго по следующей структуре:
+
+{
+  "supplements": [
+    { "name": "", "dose": "", "time": "", "intakeInstructions": "" }
+  ],
+  "goal": "",
+  "duration": 30,
+  "suggestions": "",
+  "warnings": "",
+  "questions": [],
+  "repeatAnalysis": "",
+  "compatibilityNotes": ""
+}
+`;
+
+  try {
+    const response = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [{ role: 'user', content: prompt }],
+      response_format: { type: 'json_object' }, // ✅ должен быть объектом в openai v4
+    });
+
+    const result = JSON.parse(response.choices[0].message.content);
+
+    return {
+      ...result,
+      repeatAnalysis: result.repeatAnalysis || 'Повторить через 8 недель.',
+    };
+  } catch (error) {
+    console.error('Error with GPT-4o in generateCourse:', error.message, error.stack);
+    throw new Error(`Failed to generate course: ${error.message}`);
+  }
+};
 const generateCourse = async (goal, supplements = [], dietPreference = 'none') => {
   if (!process.env.OPENAI_API_KEY) {
     console.error('OPENAI_API_KEY is not set in .env');
@@ -152,6 +202,7 @@ ${dietInstruction}
     return {
       ...result,
       repeatAnalysis: result.repeatAnalysis || 'Повторить через 8 недель.',
+      compatibilityNotes: result.compatibilityNotes
     };
   } catch (error) {
     console.error('Error with GPT-4o in generateCourse:', error.message, error.stack);
@@ -476,5 +527,6 @@ module.exports = {
   analyzeAnalysisFile,
   generateAnalysisCourse,
   analyzeFoodPhoto,
-  analyzeManualFoodInput
+  analyzeManualFoodInput,
+  upCourseAi
 };

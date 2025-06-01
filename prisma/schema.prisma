@@ -7,37 +7,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model CaloriesBurned {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  date      DateTime @default(now())
+  calories  Int // Потраченные калории
+  notes     String? // Опциональные заметки
+  createdAt DateTime @default(now())
+
+  @@unique([userId, date]) // ✅ Добавлено
+}
+
 model User {
-  id            String          @id @default(uuid())
-  telegramId    String          @unique
-  createdAt     DateTime        @default(now())
-  accessToken   String?         @unique
-  refreshToken  String?         @unique
-  name          String?
-  isPremium     Boolean         @default(false) // Премиум-статус
-  isAdmin       Boolean         @default(false)
-  photoUrl      String?
-  goal          Int?            @default(2212) // Цель калорий
-  courses       Course[]
-  reminders     Reminder[]
-  foodAnalyses  FoodAnalysis[]
-  supplements   Supplement[]
-  progress      Progress[]
-  surveys       Survey[]
-  lastMessage   String?
-  GoalAnalytics GoalAnalytics[]
-  qrCodes       QRCode[]        // Связь с QR-кодами
+  id             String           @id @default(uuid())
+  telegramId     String           @unique
+  createdAt      DateTime         @default(now())
+  accessToken    String?          @unique
+  refreshToken   String?          @unique
+  name           String?
+  isPremium      Boolean          @default(false) // Премиум-статус
+  isAdmin        Boolean          @default(false)
+  photoUrl       String?
+  goal           Int?             @default(2212) // Цель калорий
+  courses        Course[]
+  reminders      Reminder[]
+  foodAnalyses   FoodAnalysis[]
+  supplements    Supplement[]
+  progress       Progress[]
+  surveys        Survey[]
+  lastMessage    String?
+  GoalAnalytics  GoalAnalytics[]
+  qrCodes        QRCode[] // Связь с QR-кодами
+  CaloriesBurned CaloriesBurned[]
 }
 
 model QRCode {
-  id         String    @id @default(uuid())
-  code       String    @unique // Уникальный ID для QR-кода
-  userId     String?   // Связь с пользователем, если QR-код использован
-  user       User?     @relation(fields: [userId], references: [id])
-  isUsed     Boolean   @default(false) // Использован ли QR-код
-  createdAt  DateTime  @default(now())
-  expiresAt  DateTime? // Срок действия QR-кода (опционально)
-  orderId    String?   // Добавляем поле orderId
+  id        String    @id @default(uuid())
+  code      String    @unique // Уникальный ID для QR-кода
+  userId    String? // Связь с пользователем, если QR-код использован
+  user      User?     @relation(fields: [userId], references: [id])
+  isUsed    Boolean   @default(false) // Использован ли QR-код
+  createdAt DateTime  @default(now())
+  expiresAt DateTime? // Срок действия QR-кода (опционально)
+  orderId   String? // Добавляем поле orderId
 }
 
 model FoodAnalysis {
@@ -91,7 +104,6 @@ model Reminder {
   createdAt      DateTime  @default(now())
   updatedAt      DateTime? @updatedAt
 }
-
 
 model Supplement {
   id        String   @id @default(uuid())
