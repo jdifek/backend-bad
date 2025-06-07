@@ -14,7 +14,7 @@ const addQR = async (req, res) => {
       },
     });
 
-    const qrLink = `https://t.me/Badi13422_bot?start=${code}`; // Исправленный формат
+    const qrLink = `https://t.me/your_AInutritionist_bot?start=${code}`; // Исправленный формат
     const qrImage = await QRCode.toDataURL(qrLink); // Генерируем Base64 изображение QR-кода
 
     res.json({

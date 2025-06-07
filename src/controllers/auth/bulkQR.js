@@ -33,7 +33,7 @@ const bulkQR = async (req, res) => {
     for (let i = 0; i < count; i++) {
       const code = uuidv4();
       const orderId = uuidv4();
-      const qrLink = `https://t.me/Badi13422_bot?start=${code}`;
+      const qrLink = `https://t.me/your_AInutritionist_bot?start=${code}`;
       const qrImage = await QRCode.toDataURL(qrLink);
 
       await prisma.qRCode.create({
